@@ -297,14 +297,14 @@ app.post("/api/upload-logo", authMiddleware, upload.single("logo"), (req, res) =
   res.json({ url: `/uploads/${path.basename(targetPath)}` });
 });
 
-// --- Servir el frontend (React build) ---
-const frontendPath = path.join(__dirname, "../Tienda-frontend/dist");
+// --- Servir el frontend (React build desde /public) ---
+const frontendPath = path.join(__dirname, "public");
 app.use(express.static(frontendPath));
 
-// --- CATCH-ALL para rutas del frontend ---
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
+
 
 // --- Iniciar servidor (CORRECTO PARA RENDER) ---
 app.listen(PORT, "0.0.0.0", () => {
