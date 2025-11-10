@@ -4,25 +4,21 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "body-parser": "^2.2.0",
+    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
     "multer": "^2.0.2",
-    "node": "^25.1.0",
     "nodemailer": "^7.0.10",
-    "server.js": "^1.0.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "twilio": "^5.10.4"

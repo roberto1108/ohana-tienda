@@ -24,8 +24,8 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // --- Configuración ---
-const JWT_SECRET = "cambialo_por_una_clave_segura";
-const PORT = process.env.PORT || 4000;
+const JWT_SECRET = process.env.JWT_SECRET || "cambialo_por_una_clave_segura";
+const PORT = process.env.PORT || 10000;
 
 // --- Base de datos ---
 let db;
@@ -298,7 +298,7 @@ app.post("/api/upload-logo", authMiddleware, upload.single("logo"), (req, res) =
 });
 
 // --- Servir el frontend (React build) ---
-const frontendPath = path.join(__dirname, "../Tienda-frontend/build");
+const frontendPath = path.join(__dirname, "../Tienda-frontend/dist");
 app.use(express.static(frontendPath));
 
 // --- CATCH-ALL para rutas del frontend ---
@@ -307,7 +307,6 @@ app.get("*", (req, res) => {
 });
 
 // --- Iniciar servidor (CORRECTO PARA RENDER) ---
-const port = process.env.PORT || 10000;
-app.listen(port, "0.0.0.0", () => {
-  console.log(`✅ Servidor corriendo en el puerto ${port}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
