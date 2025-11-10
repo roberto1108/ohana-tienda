@@ -306,7 +306,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// --- Iniciar servidor ---
-app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
+// --- Iniciar servidor (CORRECTO PARA RENDER) ---
+const port = process.env.PORT || 10000;
+app.listen(port, "0.0.0.0", () => {
+  console.log(`✅ Servidor corriendo en el puerto ${port}`);
 });
