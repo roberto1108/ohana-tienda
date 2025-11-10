@@ -1,3 +1,4 @@
+// --- Dependencias principales ---
 import express from "express";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
@@ -9,10 +10,12 @@ import path from "path";
 import fs from "fs";
 import nodemailer from "nodemailer";
 import twilio from "twilio";
-import "dotenv/config";
+import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
-// --- Inicialización de rutas absolutas ---
+dotenv.config(); // carga las variables de entorno
+
+// --- Configuración de rutas absolutas ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -23,11 +26,11 @@ app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }));
 app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// --- Configuración ---
+// --- Configuración de constantes ---
 const JWT_SECRET = process.env.JWT_SECRET || "cambialo_por_una_clave_segura";
 const PORT = process.env.PORT || 10000;
 
-// --- Base de datos ---
+// --- Inicialización de base de datos ---
 let db;
 (async () => {
   db = await open({
@@ -35,16 +38,14 @@ let db;
     driver: sqlite3.Database,
   });
 
-  // Crear tablas si no existen
-  await db.run(`
+  // Crear tablas
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE,
       password TEXT
-    )
-  `);
+    );
 
-  await db.run(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT,
@@ -52,19 +53,15 @@ let db;
       stock INTEGER,
       code TEXT,
       proveedor TEXT
-    )
-  `);
+    );
 
-  await db.run(`
     CREATE TABLE IF NOT EXISTS sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at TEXT,
       total REAL,
       items TEXT
-    )
-  `);
+    );
 
-  await db.run(`
     CREATE TABLE IF NOT EXISTS debtors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT,
@@ -74,7 +71,7 @@ let db;
       total REAL,
       created_at TEXT,
       paid INTEGER DEFAULT 0
-    )
+    );
   `);
 
   // Crear usuario admin si no existe
@@ -104,6 +101,10 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: "Token inválido" });
   }
 }
+
+// ============================
+//         ENDPOINTS
+// ============================
 
 // --- LOGIN ---
 app.post("/api/login", async (req, res) => {
@@ -297,15 +298,16 @@ app.post("/api/upload-logo", authMiddleware, upload.single("logo"), (req, res) =
   res.json({ url: `/uploads/${path.basename(targetPath)}` });
 });
 
-// --- Servir el frontend (React build desde /public) ---
+// --- Servir frontend React (Render) ---
 const frontendPath = path.join(__dirname, "public");
-app.use(express.static(frontendPath));
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  });
+}
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// --- Iniciar servidor (Render) ---
+// --- Iniciar servidor ---
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
