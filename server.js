@@ -34,6 +34,19 @@ let db;
     filename: "./db.sqlite",
     driver: sqlite3.Database,
   });
+// Crear usuario admin automáticamente si no existe
+(async () => {
+  const bcrypt = require("bcrypt");
+  db.get("SELECT * FROM usuarios WHERE username = ?", ["admin"], async (err, row) => {
+    if (!row) {
+      const hash = await bcrypt.hash("admin123", 10);
+      db.run("INSERT INTO usuarios (username, password) VALUES (?, ?)", ["admin", hash]);
+      console.log("✅ Usuario 'admin' creado con contraseña 'admin123'");
+    } else {
+      console.log("🟢 Usuario 'admin' ya existe");
+    }
+  });
+})();
 
   // Crear tablas si no existen
   await db.run(`
