@@ -19,8 +19,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // --- Middleware global ---
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }));
+app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // --- Configuración ---
@@ -34,19 +34,6 @@ let db;
     filename: "./db.sqlite",
     driver: sqlite3.Database,
   });
-// Crear usuario admin automáticamente si no existe
-(async () => {
-  const bcrypt = require("bcrypt");
-  db.get("SELECT * FROM usuarios WHERE username = ?", ["admin"], async (err, row) => {
-    if (!row) {
-      const hash = await bcrypt.hash("admin123", 10);
-      db.run("INSERT INTO usuarios (username, password) VALUES (?, ?)", ["admin", hash]);
-      console.log("✅ Usuario 'admin' creado con contraseña 'admin123'");
-    } else {
-      console.log("🟢 Usuario 'admin' ya existe");
-    }
-  });
-})();
 
   // Crear tablas si no existen
   await db.run(`
@@ -98,7 +85,9 @@ let db;
       "admin",
       hash,
     ]);
-    console.log("✅ Usuario admin creado: admin / admin123");
+    console.log("✅ Usuario 'admin' creado con contraseña 'admin123'");
+  } else {
+    console.log("🟢 Usuario 'admin' ya existe");
   }
 })();
 
@@ -253,9 +242,7 @@ app.post("/api/send-ticket", authMiddleware, async (req, res) => {
   });
 
   const itemsHtml = cart
-    .map(
-      (item) => `<li>${item.qty} × ${item.name} — $${item.price * item.qty}</li>`
-    )
+    .map((item) => `<li>${item.qty} × ${item.name} — $${item.price * item.qty}</li>`)
     .join("");
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -274,7 +261,7 @@ app.post("/api/send-ticket", authMiddleware, async (req, res) => {
 });
 
 // --- ENVIAR TICKET POR SMS ---
-const twilioClient = twilio(process.env.SMS_API_KEY, process.env.SMS_API_SECRET);
+const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 app.post("/api/send-sms", authMiddleware, async (req, res) => {
   const { phone, cart, total } = req.body;
@@ -318,8 +305,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-
-// --- Iniciar servidor (CORRECTO PARA RENDER) ---
+// --- Iniciar servidor (Render) ---
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
