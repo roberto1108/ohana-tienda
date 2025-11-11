@@ -1,4 +1,6 @@
-// --- Dependencias principales ---
+// =====================================
+// 🧩 DEPENDENCIAS PRINCIPALES
+// =====================================
 import express from "express";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
@@ -13,24 +15,38 @@ import twilio from "twilio";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
-dotenv.config(); // carga las variables de entorno
+// =====================================
+// ⚙️ CONFIGURACIÓN INICIAL
+// =====================================
+dotenv.config();
 
-// --- Configuración de rutas absolutas ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 
-// --- Middleware global ---
-app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }));
+// =====================================
+// 🚦 MIDDLEWARE GLOBAL
+// =====================================
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "*", // puedes cambiar "*" por tu frontend (por ejemplo: "https://miapp.com")
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json({ limit: "10mb" }));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// --- Configuración de constantes ---
+// =====================================
+// 🔐 VARIABLES DE ENTORNO
+// =====================================
 const JWT_SECRET = process.env.JWT_SECRET || "cambialo_por_una_clave_segura";
 const PORT = process.env.PORT || 10000;
 
-// --- Inicialización de base de datos ---
+// =====================================
+// 💾 BASE DE DATOS (SQLite)
+// =====================================
 let db;
 (async () => {
   db = await open({
@@ -38,7 +54,7 @@ let db;
     driver: sqlite3.Database,
   });
 
-  // Crear tablas
+  // Crear tablas si no existen
   await db.exec(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,10 +104,13 @@ let db;
   }
 })();
 
-// --- Middleware de autenticación ---
+// =====================================
+// 🛡️ MIDDLEWARE DE AUTENTICACIÓN
+// =====================================
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: "No autorizado" });
+
   const token = auth.split(" ")[1];
   try {
     const data = jwt.verify(token, JWT_SECRET);
@@ -102,11 +121,11 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// ============================
-//         ENDPOINTS
-// ============================
+// =====================================
+// 🧠 ENDPOINTS
+// =====================================
 
-// --- LOGIN ---
+// ---------- LOGIN ----------
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -121,6 +140,7 @@ app.post("/api/login", async (req, res) => {
       JWT_SECRET,
       { expiresIn: "8h" }
     );
+
     res.json({ token, user: { id: user.id, username: user.username } });
   } catch (err) {
     console.error("Error en login:", err);
@@ -128,7 +148,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// --- PRODUCTOS ---
+// ---------- PRODUCTOS ----------
 app.get("/api/products", authMiddleware, async (req, res) => {
   const rows = await db.all("SELECT * FROM products ORDER BY id DESC");
   res.json(rows);
@@ -143,6 +163,7 @@ app.post("/api/products", authMiddleware, async (req, res) => {
     "INSERT INTO products (name, price, stock, code, proveedor) VALUES (?, ?, ?, ?, ?)",
     [name, price, stock, code, proveedor]
   );
+
   const prod = await db.get("SELECT * FROM products WHERE id = ?", result.lastID);
   res.json(prod);
 });
@@ -150,10 +171,12 @@ app.post("/api/products", authMiddleware, async (req, res) => {
 app.put("/api/products/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { name, price, stock, code, proveedor } = req.body;
+
   await db.run(
     "UPDATE products SET name=?, price=?, stock=?, code=?, proveedor=? WHERE id=?",
     [name, price, stock, code, proveedor, id]
   );
+
   const prod = await db.get("SELECT * FROM products WHERE id = ?", id);
   res.json(prod);
 });
@@ -164,21 +187,24 @@ app.delete("/api/products/:id", authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- VENTAS ---
+// ---------- VENTAS ----------
 app.post("/api/sales", authMiddleware, async (req, res) => {
   const { items, total } = req.body;
   const created_at = new Date().toISOString();
+
   await db.run("INSERT INTO sales (created_at, total, items) VALUES (?, ?, ?)", [
     created_at,
     total,
     JSON.stringify(items),
   ]);
+
   for (const it of items) {
     await db.run("UPDATE products SET stock = stock - ? WHERE id = ?", [
       it.qty,
       it.productId,
     ]);
   }
+
   res.json({ ok: true });
 });
 
@@ -187,7 +213,7 @@ app.get("/api/sales", authMiddleware, async (req, res) => {
   res.json(rows);
 });
 
-// --- DEUDORES ---
+// ---------- DEUDORES ----------
 app.get("/api/debtors", authMiddleware, async (req, res) => {
   const rows = await db.all("SELECT * FROM debtors ORDER BY id DESC");
   res.json(rows.map((d) => ({ ...d, items: d.items ? JSON.parse(d.items) : [] })));
@@ -204,6 +230,7 @@ app.post("/api/debtors", authMiddleware, async (req, res) => {
       "INSERT INTO debtors (name, phone, description, items, total, created_at, paid) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [name, phone || "", description || "", JSON.stringify(items), total, created_at, 0]
     );
+
     const debtor = await db.get("SELECT * FROM debtors WHERE id = ?", result.lastID);
     res.json({ ...debtor, items });
   } catch (err) {
@@ -231,7 +258,7 @@ app.delete("/api/debtors/:id", authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- ENVIAR TICKET POR CORREO ---
+// ---------- ENVIAR TICKET POR CORREO ----------
 app.post("/api/send-ticket", authMiddleware, async (req, res) => {
   const { email, cart, total } = req.body;
   if (!email || !cart || cart.length === 0)
@@ -245,6 +272,7 @@ app.post("/api/send-ticket", authMiddleware, async (req, res) => {
   const itemsHtml = cart
     .map((item) => `<li>${item.qty} × ${item.name} — $${item.price * item.qty}</li>`)
     .join("");
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -261,7 +289,7 @@ app.post("/api/send-ticket", authMiddleware, async (req, res) => {
   }
 });
 
-// --- ENVIAR TICKET POR SMS ---
+// ---------- ENVIAR TICKET POR SMS ----------
 const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 app.post("/api/send-sms", authMiddleware, async (req, res) => {
@@ -272,6 +300,7 @@ app.post("/api/send-sms", authMiddleware, async (req, res) => {
   const itemsText = cart
     .map((item) => `${item.qty}×${item.name}=$${item.price * item.qty}`)
     .join(", ");
+
   try {
     await twilioClient.messages.create({
       body: `Gracias por tu compra. Items: ${itemsText}. Total: $${total}`,
@@ -285,7 +314,7 @@ app.post("/api/send-sms", authMiddleware, async (req, res) => {
   }
 });
 
-// --- SUBIR LOGO ---
+// ---------- SUBIR LOGO ----------
 const upload = multer({ dest: "uploads/" });
 app.post("/api/upload-logo", authMiddleware, upload.single("logo"), (req, res) => {
   const tempPath = req.file.path;
@@ -298,7 +327,9 @@ app.post("/api/upload-logo", authMiddleware, upload.single("logo"), (req, res) =
   res.json({ url: `/uploads/${path.basename(targetPath)}` });
 });
 
-// --- Servir frontend React (Render) ---
+// =====================================
+// 🌐 SERVIR FRONTEND (React / Render)
+// =====================================
 const frontendPath = path.join(__dirname, "public");
 if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
@@ -307,7 +338,9 @@ if (fs.existsSync(frontendPath)) {
   });
 }
 
-// --- Iniciar servidor ---
+// =====================================
+// 🚀 INICIAR SERVIDOR
+// =====================================
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
